@@ -1,6 +1,7 @@
 from collections import namedtuple
 from enum import Enum, auto
 from itertools import groupby, product
+from math import log2
 from time import sleep
 from typing import List, Tuple, Dict
 import random
@@ -12,6 +13,7 @@ import random
 NUM_SYMBOLS = 8
 VALID_GUESSES_FILENAME = 'validGuesses.txt'
 VALID_SOLUTIONS_FILENAME = 'validSolutions.txt'
+FIRST_GUESS_INFORMATION_FILENAME = 'firstGuessInformation.txt'
 
 ################################################################################
 # Structs and enums
@@ -289,32 +291,28 @@ def printPositionalCount(positionalCount: Dict[Symbol, int]):
 
 # Main functions
 def runEntropySolving():
-  # validGuesses = readDataFile(VALID_GUESSES_FILENAME)
+  # TODO: right now this just deals with the first guess from the full space
+  validGuesses = readDataFile(VALID_GUESSES_FILENAME)
   validSolutions = readDataFile(VALID_SOLUTIONS_FILENAME)
-  partitionedSpace = possibleGuessResultsPartitionedSpace(
-    validSolutions,
-    [
-      Symbol.EIGHT,
-      Symbol.FOUR,
-      Symbol.DIVIDE,
-      Symbol.SIX,
-      Symbol.EQUAL,
-      Symbol.NINE,
-      Symbol.PLUS,
-      Symbol.FIVE
-    ]
-  )
-  print(len(partitionedSpace))
-  # print([
-  #   len(subSolutionList)/len(validSolutions) for _, subSolutionList in \
-  #   partitionedSpace.items()
-  # ])
-  for result, subSolutionList in partitionedSpace.items():
-    print(' '.join([resultCell.value for resultCell in result]), end='')
-    print(f' : {len(subSolutionList)} : ', end='')
-    print(' '.join([symbol.value for symbol in subSolutionList[0]]))
+  firstGuessInformationFile = open(FIRST_GUESS_INFORMATION_FILENAME, 'w')
+  for guess in validGuesses:
+    firstGuessInformationFile.write(' '.join([symbol.value for symbol in guess]))
+    firstGuessInformationFile.write(f' : {expectedInformation(validSolutions, guess)}\n')
+  firstGuessInformationFile.close()
 
 # Helpers
+def expectedInformation(
+  solutionList: List[List[Symbol]],
+  guess: List[Symbol]
+) -> float:
+  partitionedSpace = possibleGuessResultsPartitionedSpace(solutionList, guess)
+  partitionedProbabilities = [
+    len(subSolutionList)/len(solutionList) for subSolutionList in \
+    partitionedSpace.values()
+  ]
+  return sum([p*log2(1/p) for p in partitionedProbabilities])
+
+# Sub-helpers
 def possibleGuessResultsPartitionedSpace(
   solutionList: List[List[Symbol]],
   guess: List[Symbol]
@@ -328,7 +326,6 @@ def possibleGuessResultsPartitionedSpace(
       partitionedSpace[result] = [solution]
   return partitionedSpace
 
-# Sub-helpers
 def guessResult(solution: List[Symbol], guess: List[Symbol]) -> Tuple[Result]:
   # Again, not the most efficient, but I'm lazy to think of a cleverer method
   result = [None for _ in range(NUM_SYMBOLS)]
