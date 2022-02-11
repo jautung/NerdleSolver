@@ -2,7 +2,7 @@ from collections import namedtuple
 from enum import Enum, auto
 from itertools import groupby
 from time import sleep
-from typing import List
+from typing import List, Dict
 import itertools
 import random
 
@@ -11,6 +11,8 @@ import random
 ################################################################################
 
 NUM_SYMBOLS = 8
+VALID_GUESSES_FILENAME = 'validGuesses.txt'
+VALID_SOLUTIONS_FILENAME = 'validSolutions.txt'
 
 ################################################################################
 # Structs and enums
@@ -32,6 +34,39 @@ class Symbol(Enum):
   TIMES = '*'
   DIVIDE = '/'
   EQUAL = '='
+
+def characterToSymbol(character: str) -> Symbol:
+  match character:
+    case '0':
+      return Symbol.ZERO
+    case '1':
+      return Symbol.ONE
+    case '2':
+      return Symbol.TWO
+    case '3':
+      return Symbol.THREE
+    case '4':
+      return Symbol.FOUR
+    case '5':
+      return Symbol.FIVE
+    case '6':
+      return Symbol.SIX
+    case '7':
+      return Symbol.SEVEN
+    case '8':
+      return Symbol.EIGHT
+    case '9':
+      return Symbol.NINE
+    case '+':
+      return Symbol.PLUS
+    case '-':
+      return Symbol.MINUS
+    case '*':
+      return Symbol.TIMES
+    case '/':
+      return Symbol.DIVIDE
+    case '=':
+      return Symbol.EQUAL
 
 class SymbolType(Enum):
   DIGIT = auto()
@@ -99,7 +134,8 @@ def parseGroup(group: List, forSolution: bool) -> any:
       raise ParsingError
     return group[0]
   elif symbolType(group[0]) == SymbolType.DIGIT:
-    if forSolution and group[0] == Symbol.ZERO: # no leading or lone zeroes for solution
+    if forSolution and group[0] == Symbol.ZERO:
+      # no leading or lone zeroes for solution
       raise ParsingError
     numberString = ''.join([symbol.value for symbol in group])
     try:
@@ -163,8 +199,68 @@ def evaluateTriple(operation: Symbol, lhs: int, rhs: int):
       return lhs / rhs
 
 ################################################################################
+# Data I/O
+################################################################################
+
+def readDataFile(filename: str) -> List[List[Symbol]]:
+  data = []
+  dataFile = open(filename, 'r')
+  for line in dataFile:
+    data.append(parseLine(line))
+  dataFile.close()
+  return data
+
+def parseLine(line: str) -> List[Symbol]:
+  strippedLine = ''.join(line.split())
+  return [characterToSymbol(character) for character in strippedLine]
+
+################################################################################
 # Statistics
 ################################################################################
+
+def basicStatistics():
+  validSolutions = readDataFile(VALID_SOLUTIONS_FILENAME)
+  print(f'Total number of valid solutions: {len(validSolutions)}')
+
+  positionalCounts = [emptySymbolCountMap() for _ in range(NUM_SYMBOLS)]
+  for validSolution in validSolutions:
+    for index in range(NUM_SYMBOLS):
+      positionalCounts[index][validSolution[index]] += 1
+
+  print(f'\nAggregated counts across positions:')
+  aggregatedPositionalCount = aggregatePositionalCounts(positionalCounts)
+  printPositionalCount(aggregatedPositionalCount)
+  for index in range(NUM_SYMBOLS):
+    print(f'\nCounts for position {index+1}:')
+    printPositionalCount(positionalCounts[index])
+
+  print(f'\nFor csv copying:')
+  print(f'Symbol\\Position,', end='')
+  print(','.join([str(index+1) for index in range(NUM_SYMBOLS)]))
+  for symbol in Symbol:
+    print(f'\'{symbol.value},', end='')
+    print(','.join([
+      str(positionalCounts[index][symbol]) for index in range(NUM_SYMBOLS)
+    ]))
+
+def emptySymbolCountMap() -> Dict[Symbol, int]:
+  countMap = dict()
+  for symbol in Symbol:
+    countMap[symbol] = 0
+  return countMap
+
+def aggregatePositionalCounts(
+  positionalCounts: List[Dict[Symbol, int]]
+) -> Dict[Symbol, int]:
+  aggregatedPositionalCount = emptySymbolCountMap()
+  for positionalCount in positionalCounts:
+    for symbol in Symbol:
+      aggregatedPositionalCount[symbol] += positionalCount[symbol]
+  return aggregatedPositionalCount
+
+def printPositionalCount(positionalCount: Dict[Symbol, int]):
+  for symbol in Symbol:
+    print(f'> \'{symbol.value}\': {positionalCount[symbol]}')
 
 ################################################################################
 # Entropy
@@ -175,15 +271,19 @@ def evaluateTriple(operation: Symbol, lhs: int, rhs: int):
 ################################################################################
 
 def generateValidSets():
-  validGuessesFile = open('validGuesses.txt', 'w')
-  validSolutionsFile = open('validSolutions.txt', 'w')
+  validGuessesFile = open(VALID_GUESSES_FILENAME, 'w')
+  validSolutionsFile = open(VALID_SOLUTIONS_FILENAME, 'w')
   for symbols in itertools.product(list(Symbol), repeat=NUM_SYMBOLS):
     validGuess = isValidGuess(symbols)
     validSolution = isValidSolution(symbols)
     if validGuess:
-      validGuessesFile.write(' '.join([symbol.value for symbol in symbols]) + '\n')
+      validGuessesFile.write(
+        ' '.join([symbol.value for symbol in symbols]) + '\n'
+      )
     if validSolution:
-      validSolutionsFile.write(' '.join([symbol.value for symbol in symbols]) + '\n')
+      validSolutionsFile.write(
+        ' '.join([symbol.value for symbol in symbols]) + '\n'
+      )
   validGuessesFile.close()
   validSolutionsFile.close()
 
@@ -300,8 +400,9 @@ def runRandomValidityTests():
   while True:
     symbols = [random.choice(list(Symbol)) for _ in range(NUM_SYMBOLS)]
     print(' '.join([symbol.value for symbol in symbols]))
-    print('isValidGuess:', isValidGuess(symbols))
-    print('isValidSolution:', isValidSolution(symbols))
+    print(f'isValidGuess: {isValidGuess(symbols)}')
+    print(f'isValidSolution: {isValidSolution(symbols)}')
+    print()
     if isValidGuess(symbols):
       sleep(3)
     if isValidSolution(symbols):
@@ -312,4 +413,5 @@ def runRandomValidityTests():
 if __name__ == '__main__':
   # runCraftedValidityTests()
   # runRandomValidityTests()
-  generateValidSets()
+  # generateValidSets()
+  basicStatistics()
