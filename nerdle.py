@@ -1,9 +1,8 @@
 from collections import namedtuple
 from enum import Enum, auto
-from itertools import groupby
+from itertools import groupby, product
 from time import sleep
-from typing import List, Dict
-import itertools
+from typing import List, Tuple, Dict
 import random
 
 ################################################################################
@@ -86,7 +85,6 @@ class Result(Enum):
   CORRECT = 'C' # green
   MISPLACED = 'M' # yellow
   WRONG = 'W' # gray
-  NONE = 'N' # placeholder for convenience of intermediate computations
 
 equation = namedtuple('equation', ['lhs', 'rhs'])
 
@@ -101,7 +99,7 @@ class ParsingError(Exception):
 def generateValidSets():
   validGuessesFile = open(VALID_GUESSES_FILENAME, 'w')
   validSolutionsFile = open(VALID_SOLUTIONS_FILENAME, 'w')
-  for symbols in itertools.product(list(Symbol), repeat=NUM_SYMBOLS):
+  for symbols in product(list(Symbol), repeat=NUM_SYMBOLS):
     validGuess = isValidGuess(symbols)
     validSolution = isValidSolution(symbols)
     if validGuess:
@@ -293,8 +291,7 @@ def printPositionalCount(positionalCount: Dict[Symbol, int]):
 def runEntropySolving():
   # validGuesses = readDataFile(VALID_GUESSES_FILENAME)
   validSolutions = readDataFile(VALID_SOLUTIONS_FILENAME)
-  # TODO
-  print(bitsGainedGivenGuessResult(
+  partitionedSpace = possibleGuessResultsPartitionedSpace(
     validSolutions,
     [
       Symbol.EIGHT,
@@ -305,55 +302,36 @@ def runEntropySolving():
       Symbol.NINE,
       Symbol.PLUS,
       Symbol.FIVE
-    ],
-    [
-      Result.WRONG,
-      Result.WRONG,
-      Result.WRONG,
-      Result.WRONG,
-      Result.MISPLACED,
-      Result.WRONG,
-      Result.WRONG,
-      Result.WRONG
     ]
-  ))
+  )
+  print(len(partitionedSpace))
+  # print([
+  #   len(subSolutionList)/len(validSolutions) for _, subSolutionList in \
+  #   partitionedSpace.items()
+  # ])
+  for result, subSolutionList in partitionedSpace.items():
+    print(' '.join([resultCell.value for resultCell in result]), end='')
+    print(f' : {len(subSolutionList)} : ', end='')
+    print(' '.join([symbol.value for symbol in subSolutionList[0]]))
 
 # Helpers
-def bitsGainedGivenGuessResult(
+def possibleGuessResultsPartitionedSpace(
   solutionList: List[List[Symbol]],
-  guess: List[Symbol],
-  result: List[Result]
-) -> float:
-  originalSpaceCount = len(solutionList)
-  newSpaceCount = len(filterByGuessResult(solutionList, guess, result))
-  print(newSpaceCount, originalSpaceCount) # TODO
-  return newSpaceCount / originalSpaceCount
+  guess: List[Symbol]
+) -> List[float]:
+  partitionedSpace = dict()
+  for solution in solutionList:
+    result = guessResult(solution, guess)
+    if result in partitionedSpace:
+      partitionedSpace[result].append(solution)
+    else:
+      partitionedSpace[result] = [solution]
+  return partitionedSpace
 
 # Sub-helpers
-def filterByGuessResult(
-  solutionList: List[List[Symbol]],
-  guess: List[Symbol],
-  result: List[Result]
-) -> List[List[Symbol]]:
-  return [
-    solution for solution in solutionList if \
-    isMatchGuessResult(solution, guess, result)
-  ]
-
-def isMatchGuessResult(
-  solution: List[Symbol],
-  guess: List[Symbol],
-  result: List[Result]
-) -> bool:
-  realResult = guessResult(solution, guess)
-  for index in range(NUM_SYMBOLS):
-    if realResult[index] != result[index]:
-      return False
-  return True
-
-def guessResult(solution: List[Symbol], guess: List[Symbol]) -> List[Result]:
+def guessResult(solution: List[Symbol], guess: List[Symbol]) -> Tuple[Result]:
   # Again, not the most efficient, but I'm lazy to think of a cleverer method
-  result = [Result.NONE for _ in range(NUM_SYMBOLS)]
+  result = [None for _ in range(NUM_SYMBOLS)]
   solutionTemp = solution.copy()
   for index in range(NUM_SYMBOLS):
     if guess[index] == solution[index]:
@@ -362,13 +340,13 @@ def guessResult(solution: List[Symbol], guess: List[Symbol]) -> List[Result]:
     elif guess[index] not in solution:
       result[index] = Result.WRONG
   for index in range(NUM_SYMBOLS):
-    if result[index] == Result.NONE:
+    if result[index] == None:
       if guess[index] in solutionTemp:
         result[index] = Result.MISPLACED
         solutionTemp.remove(guess[index])
       else:
         result[index] = Result.WRONG
-  return result
+  return tuple(result)
 
 ################################################################################
 # Tests
@@ -601,6 +579,17 @@ def runRandomGuessResultTests():
     print('Result  :', ' '.join([resultCell.value for resultCell in result]))
     print()
 
+def isMatchGuessResult(
+  solution: List[Symbol],
+  guess: List[Symbol],
+  result: Tuple[Result]
+) -> bool:
+  realResult = guessResult(solution, guess)
+  for index in range(NUM_SYMBOLS):
+    if realResult[index] != result[index]:
+      return False
+  return True
+
 ################################################################################
 
 if __name__ == '__main__':
@@ -608,6 +597,6 @@ if __name__ == '__main__':
   # runRandomValidityTests()
   # generateValidSets()
   # basicStatistics()
-  runCraftedGuessResultTests()
-  runRandomGuessResultTests()
-  # runEntropySolving()
+  # runCraftedGuessResultTests()
+  # runRandomGuessResultTests()
+  runEntropySolving()
