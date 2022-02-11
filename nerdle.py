@@ -92,6 +92,23 @@ class ParsingError(Exception):
 ################################################################################
 
 # Main functions
+def generateValidSets():
+  validGuessesFile = open(VALID_GUESSES_FILENAME, 'w')
+  validSolutionsFile = open(VALID_SOLUTIONS_FILENAME, 'w')
+  for symbols in itertools.product(list(Symbol), repeat=NUM_SYMBOLS):
+    validGuess = isValidGuess(symbols)
+    validSolution = isValidSolution(symbols)
+    if validGuess:
+      validGuessesFile.write(
+        ' '.join([symbol.value for symbol in symbols]) + '\n'
+      )
+    if validSolution:
+      validSolutionsFile.write(
+        ' '.join([symbol.value for symbol in symbols]) + '\n'
+      )
+  validGuessesFile.close()
+  validSolutionsFile.close()
+
 def isValidGuess(symbols: List[Symbol]) -> bool:
   return isCorrectLength(symbols) and \
          hasSingleEquals(symbols) and \
@@ -265,27 +282,6 @@ def printPositionalCount(positionalCount: Dict[Symbol, int]):
 ################################################################################
 # Entropy
 ################################################################################
-
-################################################################################
-# Mains
-################################################################################
-
-def generateValidSets():
-  validGuessesFile = open(VALID_GUESSES_FILENAME, 'w')
-  validSolutionsFile = open(VALID_SOLUTIONS_FILENAME, 'w')
-  for symbols in itertools.product(list(Symbol), repeat=NUM_SYMBOLS):
-    validGuess = isValidGuess(symbols)
-    validSolution = isValidSolution(symbols)
-    if validGuess:
-      validGuessesFile.write(
-        ' '.join([symbol.value for symbol in symbols]) + '\n'
-      )
-    if validSolution:
-      validSolutionsFile.write(
-        ' '.join([symbol.value for symbol in symbols]) + '\n'
-      )
-  validGuessesFile.close()
-  validSolutionsFile.close()
 
 ################################################################################
 # Tests
