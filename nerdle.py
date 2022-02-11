@@ -82,6 +82,12 @@ def symbolType(symbol: Symbol) -> SymbolType:
          Symbol.EQUAL:
       return SymbolType.OPERATION
 
+class Result(Enum):
+  CORRECT = 'C' # green
+  MISPLACED = 'M' # yellow
+  WRONG = 'W' # gray
+  NONE = 'N' # placeholder for convenience of intermediate computations
+
 equation = namedtuple('equation', ['lhs', 'rhs'])
 
 class ParsingError(Exception):
@@ -283,6 +289,87 @@ def printPositionalCount(positionalCount: Dict[Symbol, int]):
 # Entropy
 ################################################################################
 
+# Main functions
+def runEntropySolving():
+  # validGuesses = readDataFile(VALID_GUESSES_FILENAME)
+  validSolutions = readDataFile(VALID_SOLUTIONS_FILENAME)
+  # TODO
+  print(bitsGainedGivenGuessResult(
+    validSolutions,
+    [
+      Symbol.EIGHT,
+      Symbol.FOUR,
+      Symbol.DIVIDE,
+      Symbol.SIX,
+      Symbol.EQUAL,
+      Symbol.NINE,
+      Symbol.PLUS,
+      Symbol.FIVE
+    ],
+    [
+      Result.WRONG,
+      Result.WRONG,
+      Result.WRONG,
+      Result.WRONG,
+      Result.MISPLACED,
+      Result.WRONG,
+      Result.WRONG,
+      Result.WRONG
+    ]
+  ))
+
+# Helpers
+def bitsGainedGivenGuessResult(
+  solutionList: List[List[Symbol]],
+  guess: List[Symbol],
+  result: List[Result]
+) -> float:
+  originalSpaceCount = len(solutionList)
+  newSpaceCount = len(filterByGuessResult(solutionList, guess, result))
+  print(newSpaceCount, originalSpaceCount) # TODO
+  return newSpaceCount / originalSpaceCount
+
+# Sub-helpers
+def filterByGuessResult(
+  solutionList: List[List[Symbol]],
+  guess: List[Symbol],
+  result: List[Result]
+) -> List[List[Symbol]]:
+  return [
+    solution for solution in solutionList if \
+    isMatchGuessResult(solution, guess, result)
+  ]
+
+def isMatchGuessResult(
+  solution: List[Symbol],
+  guess: List[Symbol],
+  result: List[Result]
+) -> bool:
+  realResult = guessResult(solution, guess)
+  for index in range(NUM_SYMBOLS):
+    if realResult[index] != result[index]:
+      return False
+  return True
+
+def guessResult(solution: List[Symbol], guess: List[Symbol]) -> List[Result]:
+  # Again, not the most efficient, but I'm lazy to think of a cleverer method
+  result = [Result.NONE for _ in range(NUM_SYMBOLS)]
+  solutionTemp = solution.copy()
+  for index in range(NUM_SYMBOLS):
+    if guess[index] == solution[index]:
+      result[index] = Result.CORRECT
+      solutionTemp.remove(solution[index])
+    elif guess[index] not in solution:
+      result[index] = Result.WRONG
+  for index in range(NUM_SYMBOLS):
+    if result[index] == Result.NONE:
+      if guess[index] in solutionTemp:
+        result[index] = Result.MISPLACED
+        solutionTemp.remove(guess[index])
+      else:
+        result[index] = Result.WRONG
+  return result
+
 ################################################################################
 # Tests
 ################################################################################
@@ -404,10 +491,123 @@ def runRandomValidityTests():
     if isValidSolution(symbols):
       break
 
+def runCraftedGuessResultTests():
+  assert(isMatchGuessResult(
+    [
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO
+    ],
+    [
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO
+    ],
+    [
+      Result.CORRECT,
+      Result.CORRECT,
+      Result.CORRECT,
+      Result.CORRECT,
+      Result.CORRECT,
+      Result.CORRECT,
+      Result.CORRECT,
+      Result.CORRECT
+    ]
+  ))
+
+  assert(isMatchGuessResult(
+    [
+      Symbol.ONE,
+      Symbol.ONE,
+      Symbol.ONE,
+      Symbol.ONE,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO
+    ],
+    [
+      Symbol.ONE,
+      Symbol.ONE,
+      Symbol.ZERO,
+      Symbol.TWO,
+      Symbol.ZERO,
+      Symbol.TWO,
+      Symbol.ONE,
+      Symbol.ONE
+    ],
+    [
+      Result.CORRECT,
+      Result.CORRECT,
+      Result.MISPLACED,
+      Result.WRONG,
+      Result.CORRECT,
+      Result.WRONG,
+      Result.MISPLACED,
+      Result.MISPLACED
+    ]
+  ))
+
+  assert(isMatchGuessResult(
+    [
+      Symbol.ONE,
+      Symbol.ONE,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO,
+      Symbol.ZERO
+    ],
+    [
+      Symbol.ONE,
+      Symbol.TWO,
+      Symbol.TWO,
+      Symbol.TWO,
+      Symbol.TWO,
+      Symbol.TWO,
+      Symbol.ONE,
+      Symbol.ONE
+    ],
+    [
+      Result.CORRECT,
+      Result.WRONG,
+      Result.WRONG,
+      Result.WRONG,
+      Result.WRONG,
+      Result.WRONG,
+      Result.MISPLACED,
+      Result.WRONG
+    ]
+  ))
+
+def runRandomGuessResultTests():
+  for _ in range(5):
+    solution = [random.choice(list(Symbol)) for _ in range(NUM_SYMBOLS)]
+    guess = [random.choice(list(Symbol)) for _ in range(NUM_SYMBOLS)]
+    print('Solution:', ' '.join([symbol.value for symbol in solution]))
+    print('Guess   :', ' '.join([symbol.value for symbol in guess]))
+    result = guessResult(solution, guess)
+    print('Result  :', ' '.join([resultCell.value for resultCell in result]))
+    print()
+
 ################################################################################
 
 if __name__ == '__main__':
   # runCraftedValidityTests()
   # runRandomValidityTests()
   # generateValidSets()
-  basicStatistics()
+  # basicStatistics()
+  runCraftedGuessResultTests()
+  runRandomGuessResultTests()
+  # runEntropySolving()
