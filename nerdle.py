@@ -14,6 +14,7 @@ NUM_SYMBOLS = 8
 VALID_GUESSES_FILENAME = 'validGuesses.txt'
 VALID_SOLUTIONS_FILENAME = 'validSolutions.txt'
 FIRST_GUESS_INFORMATION_FILENAME = 'firstGuessInformation.txt'
+FIRST_GUESS_INFORMATION_SORTED_FILENAME = 'firstGuessInformationSorted.txt'
 
 ################################################################################
 # Structs and enums
@@ -229,13 +230,29 @@ def readDataFile(filename: str) -> List[List[Symbol]]:
   data = []
   dataFile = open(filename, 'r')
   for line in dataFile:
-    data.append(parseLine(line))
+    data.append(parseDataLine(line))
   dataFile.close()
   return data
 
-def parseLine(line: str) -> List[Symbol]:
+def parseDataLine(line: str) -> List[Symbol]:
   strippedLine = ''.join(line.split())
   return [characterToSymbol(character) for character in strippedLine]
+
+def readValueFile(filename: str) -> List[Tuple[List[Symbol], float]]:
+  value = []
+  valueFile = open(filename, 'r')
+  for line in valueFile:
+    value.append(parseValueLine(line))
+  valueFile.close()
+  return value
+
+def parseValueLine(line: str) -> Tuple[List[Symbol], float]:
+  characters, value = tuple(line.split(':'))
+  strippedCharacters = ''.join(characters.split())
+  return (
+    [characterToSymbol(character) for character in strippedCharacters],
+    float(value)
+  )
 
 ################################################################################
 # Statistics
@@ -296,9 +313,25 @@ def runEntropySolving():
   validSolutions = readDataFile(VALID_SOLUTIONS_FILENAME)
   firstGuessInformationFile = open(FIRST_GUESS_INFORMATION_FILENAME, 'w')
   for guess in validGuesses:
-    firstGuessInformationFile.write(' '.join([symbol.value for symbol in guess]))
-    firstGuessInformationFile.write(f' : {expectedInformation(validSolutions, guess)}\n')
+    firstGuessInformationFile.write(
+      ' '.join([symbol.value for symbol in guess])
+    )
+    firstGuessInformationFile.write(
+      f' : {expectedInformation(validSolutions, guess)}\n'
+    )
   firstGuessInformationFile.close()
+
+def sortEntropySolving():
+  firstGuessInformation = readValueFile(FIRST_GUESS_INFORMATION_FILENAME)
+  firstGuessInformationSortedFile = \
+    open(FIRST_GUESS_INFORMATION_SORTED_FILENAME, 'w')
+  firstGuessInformation.sort(key=lambda item: item[1], reverse=True)
+  for item in firstGuessInformation:
+    firstGuessInformationSortedFile.write(
+      ' '.join([symbol.value for symbol in item[0]])
+    )
+    firstGuessInformationSortedFile.write(f' : {item[1]}\n')
+  firstGuessInformationSortedFile.close()
 
 # Helpers
 def expectedInformation(
@@ -326,7 +359,7 @@ def possibleGuessResultsPartitionedSpace(
       partitionedSpace[result] = [solution]
   return partitionedSpace
 
-def guessResult(solution: List[Symbol], guess: List[Symbol]) -> Tuple[Result]:
+def guessResult(solution: List[Symbol], guess: List[Symbol]) -> Tuple:
   # Again, not the most efficient, but I'm lazy to think of a cleverer method
   result = [None for _ in range(NUM_SYMBOLS)]
   solutionTemp = solution.copy()
@@ -579,7 +612,7 @@ def runRandomGuessResultTests():
 def isMatchGuessResult(
   solution: List[Symbol],
   guess: List[Symbol],
-  result: Tuple[Result]
+  result: Tuple
 ) -> bool:
   realResult = guessResult(solution, guess)
   for index in range(NUM_SYMBOLS):
@@ -596,4 +629,5 @@ if __name__ == '__main__':
   # basicStatistics()
   # runCraftedGuessResultTests()
   # runRandomGuessResultTests()
-  runEntropySolving()
+  # runEntropySolving()
+  sortEntropySolving()
